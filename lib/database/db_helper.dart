@@ -3,7 +3,14 @@ import 'package:path/path.dart';
 
 class DBHelper {
   static const String _databaseName = "labloan.db";
-  static const int _databaseVersion = 2;
+  static const int _databaseVersion = 5;
+
+  static const List<String> labs = [
+    "Lab Multimedia",
+    "Lab RPL",
+    "Lab Jaringan",
+    "Lab Informatika",
+  ];
 
   static Database? _database;
 
@@ -22,13 +29,10 @@ class DBHelper {
 
     return await openDatabase(
       path,
-
       version: _databaseVersion,
-
       onCreate: (db, version) async {
         await createTables(db);
       },
-
       onUpgrade: (db, oldVersion, newVersion) async {
         await migrateDB(db, oldVersion, newVersion);
       },
@@ -37,80 +41,47 @@ class DBHelper {
 
   Future createTables(Database db) async {
     await db.execute('''
-
 CREATE TABLE IF NOT EXISTS users(
-
 id INTEGER PRIMARY KEY AUTOINCREMENT,
-
 name TEXT NOT NULL,
-
 nim TEXT NOT NULL UNIQUE,
-
 phone TEXT NOT NULL DEFAULT '',
-
 password TEXT NOT NULL,
-
-role TEXT NOT NULL DEFAULT 'USER'
-
+role TEXT NOT NULL DEFAULT 'USER',
+lab TEXT NOT NULL DEFAULT '',
+photo TEXT NOT NULL DEFAULT ''
 )
-
 ''');
 
     await db.execute('''
-
 CREATE TABLE IF NOT EXISTS assets(
-
 id INTEGER PRIMARY KEY AUTOINCREMENT,
-
 name TEXT NOT NULL,
-
 category TEXT NOT NULL,
-
 lab TEXT NOT NULL,
-
 description TEXT NOT NULL,
-
 stock INTEGER NOT NULL DEFAULT 0,
-
 image TEXT NOT NULL DEFAULT '',
-
 status TEXT NOT NULL DEFAULT 'available'
-
 )
-
 ''');
 
     await db.execute('''
-
 CREATE TABLE IF NOT EXISTS borrow(
-
 id INTEGER PRIMARY KEY AUTOINCREMENT,
-
 userId INTEGER NOT NULL,
-
 assetId INTEGER NOT NULL,
-
 borrowDate TEXT NOT NULL,
-
 returnDate TEXT NOT NULL,
-
 purpose TEXT NOT NULL,
-
 status TEXT NOT NULL DEFAULT 'Menunggu',
-
 FOREIGN KEY(userId) REFERENCES users(id),
-
 FOREIGN KEY(assetId) REFERENCES assets(id)
-
 )
-
 ''');
 
     await createIndexes(db);
-
-    await seedAdmin(db);
-
-    await seedAssets(db);
+    await seedAdmins(db);
   }
 
   Future migrateDB(Database db, int oldVersion, int newVersion) async {
@@ -152,18 +123,8 @@ status TEXT NOT NULL DEFAULT 'Menunggu'
 ''');
 
       await addColumnIfMissing(db, "users", "nim", "TEXT");
-      await addColumnIfMissing(
-        db,
-        "users",
-        "phone",
-        "TEXT NOT NULL DEFAULT ''",
-      );
-      await addColumnIfMissing(
-        db,
-        "assets",
-        "status",
-        "TEXT NOT NULL DEFAULT 'available'",
-      );
+      await addColumnIfMissing(db, "users", "phone", "TEXT NOT NULL DEFAULT ''");
+      await addColumnIfMissing(db, "assets", "status", "TEXT NOT NULL DEFAULT 'available'");
 
       await db.execute('''
 UPDATE users
@@ -175,20 +136,30 @@ END
 ''');
 
       await db.execute("UPDATE users SET phone = '' WHERE phone IS NULL");
-      await db.execute(
-        "UPDATE users SET role = UPPER(role) WHERE role IS NOT NULL",
-      );
-      await db.execute(
-        "UPDATE assets SET status = 'available' WHERE status IS NULL OR status = ''",
-      );
-      await db.execute(
-        "UPDATE borrow SET status = 'Menunggu' WHERE status IS NULL OR status = ''",
-      );
+      await db.execute("UPDATE users SET role = UPPER(role) WHERE role IS NOT NULL");
+      await db.execute("UPDATE assets SET status = 'available' WHERE status IS NULL OR status = ''");
+      await db.execute("UPDATE borrow SET status = 'Menunggu' WHERE status IS NULL OR status = ''");
+    }
+
+    if (oldVersion < 3) {
+      await addColumnIfMissing(db, "users", "lab", "TEXT NOT NULL DEFAULT ''");
+
+      await db.execute('''
+UPDATE users SET lab = ?
+WHERE LOWER(role) = 'admin' AND (lab IS NULL OR lab = '')
+''', [labs.first]);
+    }
+
+    if (oldVersion < 4) {
+      await db.delete("assets");
+    }
+
+    if (oldVersion < 5) {
+      await addColumnIfMissing(db, "users", "photo", "TEXT NOT NULL DEFAULT ''");
     }
 
     await createIndexes(db);
-    await seedAdmin(db);
-    await seedAssets(db);
+    await seedAdmins(db);
   }
 
   Future ensureTable(Database db, String table, String sql) async {
@@ -204,7 +175,6 @@ END
 
   Future<bool> columnExists(Database db, String table, String column) async {
     final columns = await db.rawQuery("PRAGMA table_info($table)");
-
     return columns.any((item) => item["name"] == column);
   }
 
@@ -235,256 +205,58 @@ ON assets(lab)
 CREATE INDEX IF NOT EXISTS idx_borrow_user_status
 ON borrow(userId, status)
 ''');
+
+    await db.execute('''
+CREATE INDEX IF NOT EXISTS idx_users_lab
+ON users(lab)
+''');
   }
 
-  Future seedAdmin(Database db) async {
-    final existing = await db.query(
-      "users",
-      where: "nim = ? OR LOWER(role) = ?",
-      whereArgs: ["admin", "admin"],
-      limit: 1,
-    );
+  // Satu admin per lab. nim/username dibuat dari nama lab, mis. "Lab RPL" -> "admin_rpl".
+  Future seedAdmins(Database db) async {
+    for (final lab in labs) {
+      final username = "admin_${_slug(lab)}";
 
-    final admin = {
-      "name": "Admin Lab",
-
-      "nim": "admin",
-
-      "phone": "0000000000",
-
-      "password": "admin123",
-
-      "role": "ADMIN",
-    };
-
-    if (existing.isEmpty) {
-      await db.insert("users", admin);
-
-      return;
-    }
-
-    await db.update(
-      "users",
-      admin,
-      where: "id = ?",
-      whereArgs: [existing.first["id"]],
-    );
-  }
-
-  Future seedAssets(Database db) async {
-    List<Map<String, dynamic>> assets = [
-      {
-        "name": "Kamera DSLR",
-
-        "category": "Kamera",
-
-        "lab": "Lab Multimedia",
-
-        "description":
-            "Kamera DSLR untuk dokumentasi praktikum dan proyek multimedia.",
-
-        "stock": 7,
-
-        "image": "camera",
-
-        "status": "available",
-      },
-
-      {
-        "name": "Tripod kamera",
-
-        "category": "Kamera",
-
-        "lab": "Lab Multimedia",
-
-        "description": "Tripod kamera untuk pengambilan gambar stabil.",
-
-        "stock": 5,
-
-        "image": "tripod",
-
-        "status": "available",
-      },
-
-      {
-        "name": "Lighting Studio",
-
-        "category": "Lighting",
-
-        "lab": "Lab Multimedia",
-
-        "description": "Lampu studio untuk kebutuhan foto dan video.",
-
-        "stock": 0,
-
-        "image": "lighting",
-
-        "status": "unavailable",
-      },
-
-      {
-        "name": "Microphone Wireless",
-
-        "category": "Audio",
-
-        "lab": "Lab Multimedia",
-
-        "description":
-            "Microphone wireless untuk rekaman audio dan presentasi.",
-
-        "stock": 3,
-
-        "image": "microphone",
-
-        "status": "available",
-      },
-
-      {
-        "name": "Monitor",
-
-        "category": "Display",
-
-        "lab": "Lab RPL",
-
-        "description":
-            "Monitor eksternal untuk praktikum rekayasa perangkat lunak.",
-
-        "stock": 7,
-
-        "image": "monitor",
-
-        "status": "available",
-      },
-
-      {
-        "name": "Keyboard",
-
-        "category": "Peripheral",
-
-        "lab": "Lab RPL",
-
-        "description":
-            "Keyboard praktikum untuk perangkat komputer laboratorium.",
-
-        "stock": 5,
-
-        "image": "keyboard",
-
-        "status": "available",
-      },
-
-      {
-        "name": "Mouse",
-
-        "category": "Peripheral",
-
-        "lab": "Lab RPL",
-
-        "description": "Mouse komputer cadangan untuk kegiatan praktikum.",
-
-        "stock": 0,
-
-        "image": "mouse",
-
-        "status": "unavailable",
-      },
-
-      {
-        "name": "Switch",
-
-        "category": "Jaringan",
-
-        "lab": "Lab Jaringan",
-
-        "description":
-            "Switch jaringan untuk simulasi dan praktikum jaringan komputer.",
-
-        "stock": 7,
-
-        "image": "switch",
-
-        "status": "available",
-      },
-
-      {
-        "name": "Wireless adapter",
-
-        "category": "Jaringan",
-
-        "lab": "Lab Jaringan",
-
-        "description": "Wireless adapter untuk pengujian koneksi nirkabel.",
-
-        "stock": 0,
-
-        "image": "wireless_adapter",
-
-        "status": "unavailable",
-      },
-
-      {
-        "name": "Tang Crimping",
-
-        "category": "Jaringan",
-
-        "lab": "Lab Jaringan",
-
-        "description":
-            "Tang crimping untuk pemasangan konektor kabel jaringan.",
-
-        "stock": 5,
-
-        "image": "crimping",
-
-        "status": "available",
-      },
-
-      {
-        "name": "Harddisk eksternal",
-
-        "category": "Hardware",
-
-        "lab": "Lab Informatika",
-
-        "description": "Harddisk eksternal untuk penyimpanan data praktikum.",
-
-        "stock": 7,
-
-        "image": "harddisk",
-
-        "status": "available",
-      },
-
-      {
-        "name": "Projector",
-
-        "category": "Display",
-
-        "lab": "Lab Informatika",
-
-        "description":
-            "Projector untuk presentasi dan pembelajaran di laboratorium.",
-
-        "stock": 0,
-
-        "image": "projector",
-
-        "status": "unavailable",
-      },
-    ];
-
-    for (var item in assets) {
       final existing = await db.query(
-        "assets",
-        where: "name = ? AND lab = ?",
-        whereArgs: [item["name"], item["lab"]],
+        "users",
+        where: "nim = ?",
+        whereArgs: [username],
         limit: 1,
       );
 
       if (existing.isEmpty) {
-        await db.insert("assets", item);
+        await db.insert("users", {
+          "name": "Admin $lab",
+          "nim": username,
+          "phone": "0000000000",
+          "password": "admin123",
+          "role": "ADMIN",
+          "lab": lab,
+          "photo": "",
+        });
+      } else {
+
+        await db.update(
+          "users",
+          {
+            "name": "Admin $lab",
+            "phone": existing.first["phone"] ?? "0000000000",
+            "password": existing.first["password"] ?? "admin123",
+            "role": "ADMIN",
+            "lab": lab,
+          },
+          where: "id = ?",
+          whereArgs: [existing.first["id"]],
+        );
       }
     }
+  }
+
+  String _slug(String lab) {
+    return lab
+        .toLowerCase()
+        .replaceFirst("lab ", "")
+        .replaceAll(RegExp(r'\s+'), '_');
   }
 
   Future<int> register(Map<String, dynamic> user) async {
@@ -494,6 +266,8 @@ ON borrow(userId, status)
 
     data["role"] = (data["role"] ?? "USER").toString().toUpperCase();
     data["phone"] = data["phone"] ?? "";
+    data["lab"] = data["lab"] ?? "";
+    data["photo"] = data["photo"] ?? "";
 
     return await db.insert("users", data);
   }
@@ -520,9 +294,7 @@ ON borrow(userId, status)
 
     List<Map<String, dynamic>> result = await db.query(
       "users",
-
       where: "nim=? AND password=?",
-
       whereArgs: [nim, password],
     );
 
@@ -575,11 +347,8 @@ ON borrow(userId, status)
 
     return await db.update(
       "assets",
-
       data,
-
       where: "id=?",
-
       whereArgs: [data["id"]],
     );
   }
@@ -687,6 +456,7 @@ ON borrow(userId, status)
   Future<List<Map<String, dynamic>>> getBorrowDetails({
     int? userId,
     String? status,
+    String? lab,
   }) async {
     final db = await database;
     final where = <String>[];
@@ -700,6 +470,11 @@ ON borrow(userId, status)
     if (status != null && status.isNotEmpty) {
       where.add("b.status = ?");
       args.add(status);
+    }
+
+    if (lab != null && lab.isNotEmpty) {
+      where.add("a.lab = ?");
+      args.add(lab);
     }
 
     final whereSql = where.isEmpty ? "" : "WHERE ${where.join(" AND ")}";
@@ -730,33 +505,51 @@ ORDER BY b.id DESC
 ''', args);
   }
 
-  Future<Map<String, int>> getBorrowStats() async {
+  Future<Map<String, int>> getBorrowStats({String? lab}) async {
     final db = await database;
+
+    final assetWhere = (lab != null && lab.isNotEmpty) ? "WHERE lab = ?" : "";
+    final assetArgs = (lab != null && lab.isNotEmpty) ? [lab] : <Object?>[];
+
+    final borrowJoinWhere = (lab != null && lab.isNotEmpty)
+        ? "INNER JOIN assets a ON a.id = b.assetId WHERE a.lab = ? AND b.status = ?"
+        : "WHERE b.status = ?";
+
     final assetCount =
         Sqflite.firstIntValue(
-          await db.rawQuery("SELECT COUNT(*) FROM assets"),
+          await db.rawQuery("SELECT COUNT(*) FROM assets $assetWhere", assetArgs),
         ) ??
         0;
+
     final activeCount =
         Sqflite.firstIntValue(
-          await db.rawQuery("SELECT COUNT(*) FROM borrow WHERE status = ?", [
-            "Dipinjam",
-          ]),
+          await db.rawQuery(
+            "SELECT COUNT(*) FROM borrow b $borrowJoinWhere",
+            (lab != null && lab.isNotEmpty) ? [lab, "Dipinjam"] : ["Dipinjam"],
+          ),
         ) ??
         0;
+
     final pendingCount =
         Sqflite.firstIntValue(
-          await db.rawQuery("SELECT COUNT(*) FROM borrow WHERE status = ?", [
-            "Menunggu",
-          ]),
+          await db.rawQuery(
+            "SELECT COUNT(*) FROM borrow b $borrowJoinWhere",
+            (lab != null && lab.isNotEmpty) ? [lab, "Menunggu"] : ["Menunggu"],
+          ),
         ) ??
         0;
+
+    final dueTodayWhere = (lab != null && lab.isNotEmpty)
+        ? "INNER JOIN assets a ON a.id = b.assetId WHERE a.lab = ? AND b.status = ? AND b.returnDate = ?"
+        : "WHERE b.status = ? AND b.returnDate = ?";
+
+    final dueTodayArgs = (lab != null && lab.isNotEmpty)
+        ? [lab, "Dipinjam", DateTime.now().toIso8601String().substring(0, 10)]
+        : ["Dipinjam", DateTime.now().toIso8601String().substring(0, 10)];
+
     final dueToday =
         Sqflite.firstIntValue(
-          await db.rawQuery(
-            "SELECT COUNT(*) FROM borrow WHERE status = ? AND returnDate = ?",
-            ["Dipinjam", DateTime.now().toIso8601String().substring(0, 10)],
-          ),
+          await db.rawQuery("SELECT COUNT(*) FROM borrow b $dueTodayWhere", dueTodayArgs),
         ) ??
         0;
 

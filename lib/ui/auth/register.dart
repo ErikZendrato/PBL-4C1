@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:peminjaman/ui/auth/login.dart';
 
 import '../../services/auth_service.dart';
 import '../../ui/user/dashboard.dart';
@@ -185,7 +186,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const DashboardPage()),
+        MaterialPageRoute(builder: (_) => const LoginPage()),
         (route) => false,
       );
     } catch (_) {

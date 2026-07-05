@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../models/users.dart';
 import '../../services/auth_service.dart';
@@ -31,6 +34,7 @@ class _ProfilePageState extends State<ProfilePage> {
   int? _loadedUserId;
   bool _hide = true;
   bool _loading = false;
+  String _photoPath = "";
 
   @override
   void initState() {
@@ -41,7 +45,6 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void didUpdateWidget(covariant ProfilePage oldWidget) {
     super.didUpdateWidget(oldWidget);
-
     if (oldWidget.user?.id != widget.user?.id) {
       _syncUser(widget.user);
     }
@@ -63,7 +66,10 @@ class _ProfilePageState extends State<ProfilePage> {
         : SingleChildScrollView(
             child: Column(
               children: [
-                const _ProfileHeader(),
+                _ProfileHeader(
+                  photoPath: _photoPath,
+                  onEditPhoto: _pickPhoto,
+                ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
                   child: Form(
@@ -140,6 +146,12 @@ class _ProfilePageState extends State<ProfilePage> {
                           width: double.infinity,
                           height: 54,
                           child: FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFF5B39D4),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
                             onPressed: _loading ? null : _save,
                             icon: _loading
                                 ? const SizedBox(
@@ -159,6 +171,13 @@ class _ProfilePageState extends State<ProfilePage> {
                           width: double.infinity,
                           height: 54,
                           child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF5B39D4),
+                              side: const BorderSide(color: Color(0xFF5B39D4)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
                             onPressed: _logout,
                             icon: const Icon(Icons.logout_rounded),
                             label: const Text("Logout"),
@@ -189,6 +208,44 @@ class _ProfilePageState extends State<ProfilePage> {
     _nim.text = user.nim;
     _phone.text = user.phone;
     _password.text = user.password;
+    _photoPath = user.photo;
+  }
+
+  Future<void> _pickPhoto() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_rounded),
+              title: const Text("Ambil Foto"),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded),
+              title: const Text("Pilih dari Galeri"),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null) return;
+
+    final picked = await ImagePicker().pickImage(
+      source: source,
+      maxWidth: 800,
+      imageQuality: 85,
+    );
+
+    if (picked == null) return;
+
+    setState(() => _photoPath = picked.path);
   }
 
   Future<void> _save() async {
@@ -207,6 +264,7 @@ class _ProfilePageState extends State<ProfilePage> {
       phone: _phone.text,
       password: _password.text,
       role: user.role,
+      photo: _photoPath,
     );
 
     if (!mounted) {
@@ -240,10 +298,15 @@ class _ProfilePageState extends State<ProfilePage> {
 }
 
 class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader();
+  const _ProfileHeader({required this.photoPath, required this.onEditPhoto});
+
+  final String photoPath;
+  final VoidCallback onEditPhoto;
 
   @override
   Widget build(BuildContext context) {
+    final hasPhoto = photoPath.isNotEmpty && File(photoPath).existsSync();
+
     return ClipPath(
       clipper: _ProfileClipper(),
       child: Container(
@@ -261,41 +324,51 @@ class _ProfileHeader extends StatelessWidget {
                   color: Colors.white,
                   fontSize: 22,
                   fontWeight: FontWeight.w900,
-                  letterSpacing: 0,
                 ),
               ),
               const SizedBox(height: 18),
-              Stack(
-                alignment: Alignment.bottomRight,
-                children: [
-                  Container(
-                    width: 86,
-                    height: 86,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFFFFA54D),
-                      border: Border.all(color: Colors.white, width: 4),
+              GestureDetector(
+                onTap: onEditPhoto,
+                child: Stack(
+                  alignment: Alignment.bottomRight,
+                  children: [
+                    Container(
+                      width: 86,
+                      height: 86,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFFFFA54D),
+                        border: Border.all(color: Colors.white, width: 4),
+                        image: hasPhoto
+                            ? DecorationImage(
+                                image: FileImage(File(photoPath)),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                      child: hasPhoto
+                          ? null
+                          : const Icon(
+                              Icons.person_rounded,
+                              size: 58,
+                              color: Colors.white,
+                            ),
                     ),
-                    child: const Icon(
-                      Icons.person_rounded,
-                      size: 58,
-                      color: Colors.white,
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
+                      ),
+                      child: const Icon(
+                        Icons.edit_rounded,
+                        size: 16,
+                        color: Color(0xFF5B39D4),
+                      ),
                     ),
-                  ),
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white,
-                    ),
-                    child: const Icon(
-                      Icons.edit_rounded,
-                      size: 16,
-                      color: Color(0xFF5B39D4),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),

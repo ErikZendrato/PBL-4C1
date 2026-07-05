@@ -5,9 +5,10 @@ import '../widgets/asset_visual.dart';
 import '../widgets/status_chip.dart';
 
 class RequestAdminPage extends StatefulWidget {
-  const RequestAdminPage({super.key, this.embedded = false});
+  const RequestAdminPage({super.key, this.embedded = false, this.lab = ""});
 
   final bool embedded;
+  final String lab;
 
   @override
   State<RequestAdminPage> createState() => _RequestAdminPageState();
@@ -37,14 +38,15 @@ class _RequestAdminPageState extends State<RequestAdminPage>
         SafeArea(
           bottom: false,
           child: Container(
+            width: double.infinity,
             height: 76,
             color: const Color(0xFF313498),
             padding: const EdgeInsets.symmetric(horizontal: 18),
-            child: const Row(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.arrow_back_rounded, color: Colors.white),
-                SizedBox(width: 18),
-                Text(
+                const Text(
                   "Peminjaman",
                   style: TextStyle(
                     color: Colors.white,
@@ -52,6 +54,14 @@ class _RequestAdminPageState extends State<RequestAdminPage>
                     fontWeight: FontWeight.w900,
                   ),
                 ),
+                if (widget.lab.isNotEmpty)
+                  Text(
+                    widget.lab,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -71,7 +81,7 @@ class _RequestAdminPageState extends State<RequestAdminPage>
           child: TabBarView(
             controller: _tabController,
             children: _statuses
-                .map((status) => _RequestList(status: status))
+                .map((status) => _RequestList(status: status, lab: widget.lab))
                 .toList(),
           ),
         ),
@@ -87,9 +97,10 @@ class _RequestAdminPageState extends State<RequestAdminPage>
 }
 
 class _RequestList extends StatefulWidget {
-  const _RequestList({required this.status});
+  const _RequestList({required this.status, required this.lab});
 
   final String status;
+  final String lab;
 
   @override
   State<_RequestList> createState() => _RequestListState();
@@ -101,7 +112,7 @@ class _RequestListState extends State<_RequestList> {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<Map<String, dynamic>>>(
-      future: _service.getAllBorrows(status: widget.status),
+      future: _service.getAllBorrows(status: widget.status, lab: widget.lab),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());

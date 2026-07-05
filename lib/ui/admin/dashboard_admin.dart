@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../models/users.dart';
 import '../../services/auth_service.dart';
 import '../../services/borrow_service.dart';
-import '../splash.dart';
 import '../widgets/asset_visual.dart';
 import '../widgets/status_chip.dart';
 import 'asset_admin.dart';
+import 'profile_admin.dart';
 import 'request_admin.dart';
 
 class DashboardAdmin extends StatefulWidget {
@@ -19,19 +20,46 @@ class DashboardAdmin extends StatefulWidget {
 
 class _DashboardAdminState extends State<DashboardAdmin> {
   late int _selectedIndex;
+  final _auth = AuthService();
+  UserModel? _admin;
+  bool _loadingAdmin = true;
 
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.initialIndex;
+    _loadAdmin();
+  }
+
+  Future<void> _loadAdmin() async {
+    final user = await _auth.currentUser();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _admin = user;
+      _loadingAdmin = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_loadingAdmin) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFE8EDF7),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final lab = _admin?.lab ?? "";
+
     final pages = [
-      _AdminDashboardContent(onOpenRequests: () => _setIndex(1)),
-      const RequestAdminPage(embedded: true),
-      const _AdminProfile(),
+      _AdminDashboardContent(lab: lab, onOpenRequests: () => _setIndex(2)),
+      AssetAdminPage(embedded: true, lab: lab),
+      RequestAdminPage(embedded: true, lab: lab),
+      ProfileAdmin(admin: _admin, onUpdated: _loadAdmin),
     ];
 
     return Scaffold(
@@ -44,6 +72,10 @@ class _DashboardAdminState extends State<DashboardAdmin> {
           NavigationDestination(
             icon: Icon(Icons.home_rounded),
             label: "Beranda",
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.inventory_2_rounded),
+            label: "Barang",
           ),
           NavigationDestination(
             icon: Icon(Icons.assignment_rounded),
@@ -64,8 +96,9 @@ class _DashboardAdminState extends State<DashboardAdmin> {
 }
 
 class _AdminDashboardContent extends StatefulWidget {
-  const _AdminDashboardContent({required this.onOpenRequests});
+  const _AdminDashboardContent({required this.lab, required this.onOpenRequests});
 
+  final String lab;
   final VoidCallback onOpenRequests;
 
   @override
@@ -89,45 +122,22 @@ class _AdminDashboardContentState extends State<_AdminDashboardContent> {
               height: 86,
               color: const Color(0xFF313498),
               padding: const EdgeInsets.symmetric(horizontal: 18),
-              child: Row(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.menu_rounded, color: Colors.white, size: 30),
-                  const SizedBox(width: 14),
-                  const Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Dashboard Admin",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        SizedBox(height: 3),
-                        Text(
-                          "Lab Multimedia",
-                          style: TextStyle(color: Colors.white, fontSize: 14),
-                        ),
-                      ],
+                  const Text(
+                    "Dashboard Admin",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
-                  IconButton(
-                    tooltip: "Data alat",
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const AssetAdminPage(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(
-                      Icons.inventory_2_rounded,
-                      color: Colors.white,
-                    ),
+                  const SizedBox(height: 3),
+                  Text(
+                    widget.lab.isEmpty ? "-" : widget.lab,
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
                   ),
                 ],
               ),
@@ -135,7 +145,7 @@ class _AdminDashboardContentState extends State<_AdminDashboardContent> {
             Padding(
               padding: const EdgeInsets.all(18),
               child: FutureBuilder<Map<String, int>>(
-                future: _service.getStats(),
+                future: _service.getStats(lab: widget.lab),
                 builder: (context, statsSnapshot) {
                   final stats = statsSnapshot.data ?? {};
 
@@ -200,7 +210,10 @@ class _AdminDashboardContentState extends State<_AdminDashboardContent> {
                       ),
                       const SizedBox(height: 10),
                       FutureBuilder<List<Map<String, dynamic>>>(
-                        future: _service.getAllBorrows(status: "Menunggu"),
+                        future: _service.getAllBorrows(
+                          status: "Menunggu",
+                          lab: widget.lab,
+                        ),
                         builder: (context, snapshot) {
                           final rows = (snapshot.data ?? []).take(3).toList();
 
@@ -354,68 +367,6 @@ class _AdminEmptyState extends StatelessWidget {
           SizedBox(height: 10),
           Text("Belum ada pengajuan terbaru."),
         ],
-      ),
-    );
-  }
-}
-
-class _AdminProfile extends StatelessWidget {
-  const _AdminProfile();
-
-  @override
-  Widget build(BuildContext context) {
-    final auth = AuthService();
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            const SizedBox(height: 48),
-            Container(
-              width: 92,
-              height: 92,
-              decoration: const BoxDecoration(
-                color: Color(0xFF313498),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.admin_panel_settings_rounded,
-                color: Colors.white,
-                size: 54,
-              ),
-            ),
-            const SizedBox(height: 18),
-            const Text(
-              "Admin Lab",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 8),
-            const Text("Kelola peminjaman alat laboratorium"),
-            const Spacer(),
-            SizedBox(
-              width: double.infinity,
-              height: 54,
-              child: OutlinedButton.icon(
-                onPressed: () async {
-                  await auth.logout();
-
-                  if (!context.mounted) {
-                    return;
-                  }
-
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (_) => const SplashPage()),
-                    (route) => false,
-                  );
-                },
-                icon: const Icon(Icons.logout_rounded),
-                label: const Text("Logout"),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

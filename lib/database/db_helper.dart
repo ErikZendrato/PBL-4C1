@@ -3,13 +3,13 @@ import 'package:path/path.dart';
 
 class DBHelper {
   static const String _databaseName = "labloan.db";
-  static const int _databaseVersion = 5;
+  static const int _databaseVersion = 6;
 
   static const List<String> labs = [
     "Lab Multimedia",
     "Lab RPL",
-    "Lab Jaringan",
-    "Lab Informatika",
+    "Lab AJK",
+    "Lab ComputerVision",
   ];
 
   static Database? _database;
@@ -158,9 +158,31 @@ WHERE LOWER(role) = 'admin' AND (lab IS NULL OR lab = '')
       await addColumnIfMissing(db, "users", "photo", "TEXT NOT NULL DEFAULT ''");
     }
 
+      if (oldVersion < 6) {
+    await _renameLab(db, oldName: "Lab Jaringan", newName: "Lab AJK");
+    await _renameLab(db, oldName: "Lab Informatika", newName: "Lab ComputerVision");
+    }
+
     await createIndexes(db);
     await seedAdmins(db);
   }
+
+  Future _renameLab(Database db, {required String oldName, required String newName}) async {
+    // 1. Pindahkan semua alat dari lab lama ke lab baru
+    await db.rawUpdate(
+      "UPDATE assets SET lab = ? WHERE lab = ?",
+      [newName, oldName],
+    );
+
+    // 2. Update akun admin: nama lab DAN username-nya (karena username = turunan nama lab)
+    final oldUsername = "admin_${_slug(oldName)}";
+    final newUsername = "admin_${_slug(newName)}";
+
+    await db.rawUpdate(
+      "UPDATE users SET lab = ?, nim = ? WHERE lab = ? AND nim = ?",
+      [newName, newUsername, oldName, oldUsername],
+    );
+}
 
   Future ensureTable(Database db, String table, String sql) async {
     final result = await db.rawQuery(

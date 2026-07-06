@@ -30,7 +30,11 @@ class _SplashPageState extends State<SplashPage>
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
-    _controller.forward();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _controller.forward();
+      }
+    });
   }
 
   @override
@@ -55,50 +59,58 @@ class _SplashPageState extends State<SplashPage>
                     constraints: BoxConstraints(minHeight: constraints.maxHeight),
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(24, 36, 24, 26),
-                      // Ditambahkan IntrinsicHeight di sini agar Column punya acuan tinggi pasti
-                      child: IntrinsicHeight(
-                        child: Column(
-                          children: [
-                            const SizedBox(height: 12),
-                            const AppLogo(size: 102),
-                            const SizedBox(height: 28),
-                            const Text(
-                              "ALAT LAB TI",
-                              style: TextStyle(
-                                fontSize: 27,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const SizedBox(height: 12),
+                              const AppLogo(size: 102),
+                              const SizedBox(height: 28),
+                              const Text(
+                                "ALAT LAB TI",
+                                style: TextStyle(
+                                  fontSize: 27,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 12),
-                            const Text(
-                              "Peminjaman Alat Laboratorium\nJurusan Teknologi Informasi",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 14, height: 1.35),
-                            ),
-                            const Spacer(), // Sekarang Spacer() aman karena tingginya terikat IntrinsicHeight
-                            const SizedBox(height: 24),
-                            _RoleCard(
-                              title: "Login Mahasiswa",
-                              subtitle: "Akses Untuk Mahasiswa",
-                              icon: Icons.person_rounded,
-                              color: const Color(0xFF6D46D9),
-                              background: Colors.white,
-                              borderColor: const Color(0xFF6D46D9),
-                              onTap: () => _openLogin("USER"),
-                            ),
-                            const SizedBox(height: 18),
-                            _RoleCard(
-                              title: "Login Admin Lab",
-                              subtitle: "Akses Untuk Admin Lab",
-                              icon: Icons.admin_panel_settings_rounded,
-                              color: const Color(0xFF0B63D8),
-                              background: const Color(0xFFEFF6FF),
-                              borderColor: const Color(0xFF9EC8FF),
-                              onTap: () => _openLogin("ADMIN"),
-                            ),
-                          ],
-                        ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                "Peminjaman Alat Laboratorium\nJurusan Teknologi Informasi",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 14, height: 1.35),
+                              ),
+                            ],
+                          ),
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const SizedBox(height: 24),
+                              _RoleCard(
+                                title: "Login Mahasiswa",
+                                subtitle: "Akses Untuk Mahasiswa",
+                                icon: Icons.person_rounded,
+                                color: const Color(0xFF6D46D9),
+                                background: Colors.white,
+                                borderColor: const Color(0xFF6D46D9),
+                                onTap: () => _openLogin("USER"),
+                              ),
+                              const SizedBox(height: 18),
+                              _RoleCard(
+                                title: "Login Admin Lab",
+                                subtitle: "Akses Untuk Admin Lab",
+                                icon: Icons.admin_panel_settings_rounded,
+                                color: const Color(0xFF0B63D8),
+                                background: const Color(0xFFEFF6FF),
+                                borderColor: const Color(0xFF9EC8FF),
+                                onTap: () => _openLogin("ADMIN"),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -140,37 +152,40 @@ class _RoleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(20),
-      onTap: onTap,
-      child: Ink(
-        height: 84,
-        padding: const EdgeInsets.symmetric(horizontal: 18),
-        decoration: BoxDecoration(
-          color: background,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: borderColor, width: 1.5),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 34, color: color),
-            const SizedBox(width: 18),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(color: color, fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(subtitle, style: TextStyle(color: color, fontSize: 13)),
-                ],
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Container(
+          height: 84,
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: borderColor, width: 1.5),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 34, color: color),
+              const SizedBox(width: 18),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(color: color, fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(subtitle, style: TextStyle(color: color, fontSize: 13)),
+                  ],
+                ),
               ),
-            ),
-            Icon(Icons.arrow_forward_rounded, color: color),
-          ],
+              Icon(Icons.arrow_forward_rounded, color: color),
+            ],
+          ),
         ),
       ),
     );

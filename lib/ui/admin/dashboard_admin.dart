@@ -196,7 +196,7 @@ class _AdminDashboardContentState extends State<_AdminDashboardContent> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  "Peminjama Terbaru",
+                                  "Peminjaman Terbaru",
                                   style: TextStyle(
                                     fontSize: 19,
                                     fontWeight: FontWeight.w900,

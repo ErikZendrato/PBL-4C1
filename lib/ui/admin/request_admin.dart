@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../../services/borrow_service.dart';
@@ -325,27 +327,7 @@ class _AdminBorrowDetailPageState extends State<AdminBorrowDetailPage> {
           Text(purposeParts.$2),
           const SizedBox(height: 24),
           const _SectionTitle("Jaminan"),
-          Container(
-            height: 30,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    "KTM_${widget.data["userName"] ?? "Peminjam"}.jpg",
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                ),
-                const Icon(Icons.visibility_rounded),
-              ],
-            ),
-          ),
+          _JaminanPreview(path: widget.data["jaminanImage"]?.toString() ?? ""),
           const SizedBox(height: 28),
           _ActionButtons(
             status: status,
@@ -454,6 +436,74 @@ class _ActionButtons extends StatelessWidget {
     }
 
     return const SizedBox.shrink();
+  }
+}
+
+class _JaminanPreview extends StatelessWidget {
+  const _JaminanPreview({required this.path});
+
+  final String path;
+
+  @override
+  Widget build(BuildContext context) {
+    final file = File(path);
+    final hasFile = path.isNotEmpty && file.existsSync();
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: hasFile
+          ? () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => Scaffold(
+                    backgroundColor: Colors.black,
+                    appBar: AppBar(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      title: const Text("Foto Jaminan"),
+                    ),
+                    body: Center(
+                      child: InteractiveViewer(child: Image.file(file)),
+                    ),
+                  ),
+                ),
+              );
+            }
+          : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            if (hasFile) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Image.file(
+                  file,
+                  width: 40,
+                  height: 40,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(width: 10),
+            ],
+            Expanded(
+              child: Text(
+                hasFile ? "Lihat foto jaminan (KTM)" : "Tidak ada jaminan diupload",
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+            if (hasFile) const Icon(Icons.visibility_rounded),
+          ],
+        ),
+      ),
+    );
   }
 }
 

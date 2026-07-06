@@ -207,12 +207,7 @@ class AssetDetailView extends StatelessWidget {
                           ? const Color(0xFF00A84F)
                           : const Color(0xFFE80028),
                     ),
-                    const SizedBox(width: 10),
-                    _InfoPill(
-                      icon: Icons.category_rounded,
-                      text: asset.category,
-                      color: const Color(0xFF5B39D4),
-                    ),
+                    
                   ],
                 ),
                 const SizedBox(height: 24),

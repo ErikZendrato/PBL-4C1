@@ -95,6 +95,7 @@ class BorrowService {
     required DateTime borrowDate,
     required DateTime returnDate,
     required String purpose,
+    String jaminanImage = "",
   }) async {
     final borrow = BorrowModel(
       userId: userId,
@@ -102,6 +103,7 @@ class BorrowService {
       borrowDate: _dateKey(borrowDate),
       returnDate: _dateKey(returnDate),
       purpose: purpose.trim(),
+      jaminanImage: jaminanImage,
     );
 
     return await db.borrow(borrow.toMap());

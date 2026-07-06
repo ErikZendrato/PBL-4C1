@@ -1,4 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../../models/asset.dart';
 import '../../services/auth_service.dart';
@@ -20,11 +25,15 @@ class _BorrowPageState extends State<BorrowPage> {
   final _auth = AuthService();
   final _borrowService = BorrowService();
   final _description = TextEditingController();
+  final _picker = ImagePicker();
 
   DateTime? _borrowDate;
   DateTime? _returnDate;
   String _purpose = "Tugas Mata Kuliah";
   bool _loading = false;
+
+  File? _jaminanFile;
+  bool _jaminanError = false;
 
   final _purposeOptions = const [
     "Tugas Mata Kuliah",
@@ -105,37 +114,63 @@ class _BorrowPageState extends State<BorrowPage> {
             const SizedBox(height: 14),
             InkWell(
               borderRadius: BorderRadius.circular(12),
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Upload jaminan masih opsional."),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
+              onTap: _pickJaminan,
               child: Ink(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEDEBFA),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFD8D3E6)),
+                  border: Border.all(
+                    color: _jaminanError && _jaminanFile == null
+                        ? Colors.red
+                        : const Color(0xFFD8D3E6),
+                  ),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
+                    if (_jaminanFile != null) ...[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          _jaminanFile!,
+                          width: 48,
+                          height: 48,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            "Upload Jaminan(Optional)",
+                          const Text(
+                            "Upload Jaminan (Foto KTM) *",
                             style: TextStyle(fontWeight: FontWeight.w800),
                           ),
-                          SizedBox(height: 6),
-                          Text("Foto KTP/SIM", style: TextStyle(fontSize: 12)),
+                          const SizedBox(height: 6),
+                          Text(
+                            _jaminanFile == null
+                                ? "Wajib diisi. Ketuk untuk pilih foto KTM."
+                                : "Foto terpilih. Ketuk untuk ganti.",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _jaminanError && _jaminanFile == null
+                                  ? Colors.red
+                                  : null,
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                    Icon(Icons.upload_rounded),
+                    Icon(
+                      _jaminanFile == null
+                          ? Icons.upload_rounded
+                          : Icons.check_circle_rounded,
+                      color: _jaminanFile == null
+                          ? (_jaminanError ? Colors.red : null)
+                          : const Color(0xFF2EBB58),
+                    ),
                   ],
                 ),
               ),
@@ -197,6 +232,58 @@ class _BorrowPageState extends State<BorrowPage> {
     });
   }
 
+  Future<void> _pickJaminan() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_rounded),
+              title: const Text("Ambil Foto"),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded),
+              title: const Text("Pilih dari Galeri"),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null) {
+      return;
+    }
+
+    final picked = await _picker.pickImage(source: source, imageQuality: 80);
+
+    if (picked == null) {
+      return;
+    }
+
+    // Salin ke direktori aplikasi supaya path-nya permanen (tidak hilang
+    // walau file cache/gallery-nya dihapus/berubah).
+    final docsDir = await getApplicationDocumentsDirectory();
+    final jaminanDir = Directory(p.join(docsDir.path, "jaminan"));
+
+    if (!await jaminanDir.exists()) {
+      await jaminanDir.create(recursive: true);
+    }
+
+    final fileName =
+        "jaminan_${DateTime.now().millisecondsSinceEpoch}${p.extension(picked.path)}";
+    final savedFile = await File(
+      picked.path,
+    ).copy(p.join(jaminanDir.path, fileName));
+
+    setState(() {
+      _jaminanFile = savedFile;
+      _jaminanError = false;
+    });
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -209,6 +296,12 @@ class _BorrowPageState extends State<BorrowPage> {
 
     if (_returnDate!.isBefore(_borrowDate!)) {
       _showMessage("Tanggal kembali tidak boleh sebelum tanggal pinjam.");
+      return;
+    }
+
+    if (_jaminanFile == null) {
+      setState(() => _jaminanError = true);
+      _showMessage("Foto KTM wajib diupload sebagai jaminan.");
       return;
     }
 
@@ -227,6 +320,7 @@ class _BorrowPageState extends State<BorrowPage> {
       borrowDate: _borrowDate!,
       returnDate: _returnDate!,
       purpose: "$_purpose\n${_description.text.trim()}",
+      jaminanImage: _jaminanFile!.path,
     );
 
     if (!mounted) {

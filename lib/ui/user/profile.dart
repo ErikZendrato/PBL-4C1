@@ -132,22 +132,51 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
         const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          height: 54,
-          child: FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (dialogContext) => AlertDialog(
+                      title: const Text("Keluar akun?"),
+                      content: const Text("Kamu akan keluar dari akun ini."),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogContext, false),
+                          child: const Text("Batal"),
+                        ),
+                        FilledButton(
+                          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                          onPressed: () => Navigator.pop(dialogContext, true),
+                          child: const Text("Keluar"),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirmed != true) {
+                    return;
+                  }
+
+                  await _auth.logout();
+
+                  if (!context.mounted) {
+                    return;
+                  }
+
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SplashPage()),
+                    (route) => false,
+                  );
+                },
+                icon: const Icon(Icons.logout_rounded),
+                label: const Text("Logout"),
               ),
             ),
-            onPressed: _logout,
-            icon: const Icon(Icons.logout_rounded),
-            label: const Text("Logout"),
-          ),
-        ),
       ],
     );
   }
@@ -372,24 +401,6 @@ class _ProfilePageState extends State<ProfilePage> {
         content: Text("Profile berhasil diperbarui."),
         behavior: SnackBarBehavior.floating,
       ),
-    );
-  }
-
-  Future<void> _logout() async {
-    FocusScope.of(context).unfocus();
-    await _auth.logout();
-
-    if (!mounted) {
-      return;
-    }
-
-    Navigator.of(context).pushAndRemoveUntil(
-      PageRouteBuilder(
-        pageBuilder: (_, __, ___) => const SplashPage(),
-        transitionDuration: Duration.zero,
-        reverseTransitionDuration: Duration.zero,
-      ),
-      (route) => false,
     );
   }
 }

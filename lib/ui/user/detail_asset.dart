@@ -59,13 +59,21 @@ class DetailAssetPage extends StatelessWidget {
   }
 }
 
-class _AssetListCard extends StatelessWidget {
+class _AssetListCard extends StatefulWidget {
   const _AssetListCard({required this.asset});
 
   final AssetModel asset;
 
   @override
+  State<_AssetListCard> createState() => _AssetListCardState();
+}
+
+class _AssetListCardState extends State<_AssetListCard> {
+  final _service = BorrowService();
+
+  @override
   Widget build(BuildContext context) {
+    final asset = widget.asset;
     final available = asset.stock > 0 && asset.status == "available";
 
     return InkWell(
@@ -102,18 +110,36 @@ class _AssetListCard extends StatelessWidget {
                     style: const TextStyle(fontWeight: FontWeight.w900),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    available
-                        ? "Tersedia ${asset.stock} unit"
-                        : "Kosong akan tersedia\npada 25 mei 2026",
-                    style: TextStyle(
-                      color: available
-                          ? const Color(0xFF00A84F)
-                          : const Color(0xFFE80028),
-                      fontSize: 12,
-                      height: 1.25,
+                  if (available)
+                    Text(
+                      "Tersedia ${asset.stock} unit",
+                      style: const TextStyle(
+                        color: Color(0xFF00A84F),
+                        fontSize: 12,
+                        height: 1.25,
+                      ),
+                    )
+                  else
+                    FutureBuilder<String?>(
+                      future: asset.id == null
+                          ? Future.value(null)
+                          : _service.getNearestReturnDate(asset.id!),
+                      builder: (context, snapshot) {
+                        final text =
+                            snapshot.connectionState == ConnectionState.waiting
+                            ? "Kosong"
+                            : _availabilityText(snapshot.data);
+
+                        return Text(
+                          text,
+                          style: const TextStyle(
+                            color: Color(0xFFE80028),
+                            fontSize: 12,
+                            height: 1.25,
+                          ),
+                        );
+                      },
                     ),
-                  ),
                 ],
               ),
             ),
@@ -134,18 +160,26 @@ class _AssetListCard extends StatelessWidget {
   void _openDetail(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => AssetDetailView(asset: asset)),
+      MaterialPageRoute(builder: (_) => AssetDetailView(asset: widget.asset)),
     );
   }
 }
 
-class AssetDetailView extends StatelessWidget {
+class AssetDetailView extends StatefulWidget {
   const AssetDetailView({super.key, required this.asset});
 
   final AssetModel asset;
 
   @override
+  State<AssetDetailView> createState() => _AssetDetailViewState();
+}
+
+class _AssetDetailViewState extends State<AssetDetailView> {
+  final _service = BorrowService();
+
+  @override
   Widget build(BuildContext context) {
+    final asset = widget.asset;
     final available = asset.stock > 0 && asset.status == "available";
 
     return Scaffold(
@@ -200,14 +234,31 @@ class AssetDetailView extends StatelessWidget {
                 const SizedBox(height: 18),
                 Row(
                   children: [
-                    _InfoPill(
-                      icon: Icons.inventory_2_rounded,
-                      text: available ? "Stok ${asset.stock}" : "Kosong",
-                      color: available
-                          ? const Color(0xFF00A84F)
-                          : const Color(0xFFE80028),
-                    ),
-                    
+                    if (available)
+                      _InfoPill(
+                        icon: Icons.inventory_2_rounded,
+                        text: "Stok ${asset.stock}",
+                        color: const Color(0xFF00A84F),
+                      )
+                    else
+                      FutureBuilder<String?>(
+                        future: asset.id == null
+                            ? Future.value(null)
+                            : _service.getNearestReturnDate(asset.id!),
+                        builder: (context, snapshot) {
+                          final text =
+                              snapshot.connectionState ==
+                                  ConnectionState.waiting
+                              ? "Kosong"
+                              : _availabilityText(snapshot.data, short: true);
+
+                          return _InfoPill(
+                            icon: Icons.inventory_2_rounded,
+                            text: text,
+                            color: const Color(0xFFE80028),
+                          );
+                        },
+                      ),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -315,4 +366,43 @@ class _EmptyAssets extends StatelessWidget {
       ),
     );
   }
+}
+
+String _availabilityText(String? returnDate, {bool short = false}) {
+  if (returnDate == null || returnDate.isEmpty) {
+    return "Kosong";
+  }
+
+  final formatted = _formatDate(returnDate);
+
+  if (short) {
+    return "Kosong, kembali $formatted";
+  }
+
+  return "Kosong, akan tersedia\npada $formatted";
+}
+
+String _formatDate(String value) {
+  final date = DateTime.tryParse(value);
+
+  if (date == null) {
+    return value;
+  }
+
+  const months = [
+    "januari",
+    "februari",
+    "maret",
+    "april",
+    "mei",
+    "juni",
+    "juli",
+    "agustus",
+    "september",
+    "oktober",
+    "november",
+    "desember",
+  ];
+
+  return "${date.day} ${months[date.month - 1]} ${date.year}";
 }

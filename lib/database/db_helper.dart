@@ -333,6 +333,38 @@ ON users(lab)
     return null;
   }
 
+  // ===== FORGOT PASSWORD =====
+ 
+  // Verifikasi NIM + No. HP yang terdaftar, dipakai sebelum reset password.
+  Future<Map<String, dynamic>?> verifyForReset(String nim, String phone) async {
+    final db = await database;
+ 
+    final result = await db.query(
+      "users",
+      where: "nim = ? AND phone = ?",
+      whereArgs: [nim, phone],
+      limit: 1,
+    );
+ 
+    if (result.isEmpty) {
+      return null;
+    }
+ 
+    return result.first;
+  }
+ 
+  // Set password baru berdasarkan NIM, dipanggil setelah verifyForReset berhasil.
+  Future<int> resetPassword(String nim, String newPassword) async {
+    final db = await database;
+ 
+    return await db.update(
+      "users",
+      {"password": newPassword},
+      where: "nim = ?",
+      whereArgs: [nim],
+    );
+  }
+ 
   Future<int> updateUser(Map<String, dynamic> data) async {
     final db = await database;
     final user = Map<String, dynamic>.from(data)..remove("passwordConfirm");

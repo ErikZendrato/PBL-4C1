@@ -4,6 +4,7 @@ import '../../services/auth_service.dart';
 import '../../ui/admin/dashboard_admin.dart';
 import '../../ui/user/dashboard.dart';
 import '../../ui/widgets/app_logo.dart';
+import 'forgot_password_page.dart';
 import 'register.dart';
 
 class LoginPage extends StatefulWidget {
@@ -109,7 +110,19 @@ class _LoginPageState extends State<LoginPage> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () => _showMessage("Silakan hubungi admin lab."),
+                    onPressed: () {
+                      if (_isAdmin) {
+                        _showMessage("Silakan hubungi admin lab.");
+                        return;
+                      }
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ForgotPasswordPage(),
+                        ),
+                      );
+                    },
                     child: const Text("forgot password?"),
                   ),
                 ),

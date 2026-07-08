@@ -85,7 +85,6 @@ class AuthService {
     return prefs.getString(_roleKey);
   }
 
-  // Lab yang dikelola admin yang sedang login. Null/kosong untuk role USER.
   Future<String?> currentAdminLab() async {
     final user = await currentUser();
     if (user == null || user.role.toUpperCase() != "ADMIN") {

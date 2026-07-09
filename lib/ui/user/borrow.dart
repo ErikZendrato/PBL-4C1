@@ -155,7 +155,7 @@ class _BorrowPageState extends State<BorrowPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            "Upload Jaminan (Foto KTM) *",
+                            "Upload Jaminan (Foto KTM/KTP) *",
                             style: TextStyle(fontWeight: FontWeight.w800),
                           ),
                           const SizedBox(height: 6),

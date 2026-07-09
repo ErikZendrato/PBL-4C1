@@ -188,7 +188,7 @@ class _AssetDetailViewState extends State<AssetDetailView> {
         backgroundColor: const Color(0xFF5B39D4),
         foregroundColor: Colors.white,
         title: const Text(
-          "Detail Asset",
+          "Detail Barang",
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
       ),

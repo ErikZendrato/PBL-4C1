@@ -80,14 +80,14 @@ class _BorrowPageState extends State<BorrowPage> {
             const _Label("Tanggal Pinjam"),
             _DateField(
               value: _borrowDate,
-              hint: "ex : 24 Mei 2026",
+              hint: "",
               onTap: () => _pickDate(isBorrowDate: true),
             ),
             const SizedBox(height: 18),
             const _Label("Tanggal Kembali"),
             _DateField(
               value: _returnDate,
-              hint: "ex : 25 Mei 2026",
+              hint: "",
               onTap: () => _pickDate(isBorrowDate: false),
             ),
             const SizedBox(height: 18),
@@ -112,7 +112,7 @@ class _BorrowPageState extends State<BorrowPage> {
               minLines: 4,
               maxLines: 6,
               decoration: const InputDecoration(
-                hintText: "ex : Untuk keperluan proyek video tugas akhir",
+                hintText: "Contoh : Untuk keperluan proyek video tugas akhir",
               ),
               validator: (value) {
                 if (value == null || value.trim().length < 8) {

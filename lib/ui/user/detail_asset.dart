@@ -5,11 +5,33 @@ import '../../services/borrow_service.dart';
 import '../widgets/asset_visual.dart';
 import 'borrow.dart';
 
-class DetailAssetPage extends StatelessWidget {
-  DetailAssetPage(this.lab, {super.key});
+class DetailAssetPage extends StatefulWidget {
+  const DetailAssetPage(this.lab, {super.key});
 
   final String lab;
+
+  @override
+  State<DetailAssetPage> createState() => _DetailAssetPageState();
+}
+
+class _DetailAssetPageState extends State<DetailAssetPage> {
   final _service = BorrowService();
+  final _searchCtrl = TextEditingController();
+
+  late Future<List<AssetModel>> _assetsFuture;
+  String _query = "";
+
+  @override
+  void initState() {
+    super.initState();
+    _assetsFuture = _service.getAssets(lab: widget.lab);
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,37 +45,114 @@ class DetailAssetPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              lab,
+              widget.lab,
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 6),
             Text(
-              "Daftar alat di $lab",
+              "Daftar alat di ${widget.lab}",
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w400),
             ),
           ],
         ),
       ),
-      body: FutureBuilder<List<AssetModel>>(
-        future: _service.getAssets(lab: lab),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 4),
+            child: _SearchField(
+              controller: _searchCtrl,
+              onChanged: (value) => setState(() => _query = value.trim()),
+            ),
+          ),
+          Expanded(
+            child: FutureBuilder<List<AssetModel>>(
+              future: _assetsFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-          final assets = snapshot.data ?? [];
+                final assets = snapshot.data ?? [];
 
-          if (assets.isEmpty) {
-            return const _EmptyAssets();
-          }
+                if (assets.isEmpty) {
+                  return const _EmptyAssets();
+                }
 
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(10, 14, 10, 24),
-            itemCount: assets.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 12),
-            itemBuilder: (_, index) => _AssetListCard(asset: assets[index]),
-          );
-        },
+                final filtered = _query.isEmpty
+                    ? assets
+                    : assets
+                        .where(
+                          (a) => a.name.toLowerCase().contains(
+                                _query.toLowerCase(),
+                              ),
+                        )
+                        .toList();
+
+                if (filtered.isEmpty) {
+                  return _EmptySearch(query: _query);
+                }
+
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 24),
+                  itemCount: filtered.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 12),
+                  itemBuilder: (_, index) =>
+                      _AssetListCard(asset: filtered[index]),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SearchField extends StatelessWidget {
+  const _SearchField({required this.controller, required this.onChanged});
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      style: const TextStyle(fontSize: 14),
+      decoration: InputDecoration(
+        hintText: "Cari Alat....",
+        hintStyle: const TextStyle(color: Color(0xFF9D98AD)),
+        prefixIcon: const Icon(
+          Icons.search_rounded,
+          color: Color(0xFF5B39D4),
+        ),
+        suffixIcon: controller.text.isEmpty
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.close_rounded, size: 18),
+                onPressed: () {
+                  controller.clear();
+                  onChanged("");
+                },
+              ),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Color(0xFF5B39D4), width: 1.4),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Color(0xFF5B39D4), width: 1.4),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Color(0xFF5B39D4), width: 2),
+        ),
       ),
     );
   }
@@ -360,6 +459,37 @@ class _EmptyAssets extends StatelessWidget {
               "Belum ada alat di lab ini.",
               textAlign: TextAlign.center,
               style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptySearch extends StatelessWidget {
+  const _EmptySearch({required this.query});
+
+  final String query;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.search_off_rounded,
+              size: 64,
+              color: Color(0xFF9D98AD),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Alat "$query" tidak ditemukan.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ],
         ),

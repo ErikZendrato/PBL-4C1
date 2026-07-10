@@ -361,7 +361,7 @@ class _AdminBorrowDetailPageState extends State<AdminBorrowDetailPage> {
             ],
           ),
           const SizedBox(height: 28),
-          const _SectionTitle("informasi alat"),
+          const _SectionTitle("Informasi Alat"),
           Row(
             children: [
               AssetVisual(
@@ -456,7 +456,7 @@ class _AdminBorrowDetailPageState extends State<AdminBorrowDetailPage> {
     if (result == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Status gagal diperbarui. Stok mungkin kosong."),
+          content: Text("Status Gagal Diperbarui. Stok Mungkin kosong."),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -591,7 +591,7 @@ class _JaminanPreview extends StatelessWidget {
             ],
             Expanded(
               child: Text(
-                hasFile ? "Lihat foto jaminan (KTM)" : "Tidak ada jaminan diupload",
+                hasFile ? "Lihat Foto Jaminan (KTM/KTP)" : "Tidak Ada Jaminan Diupload",
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontWeight: FontWeight.w800),
@@ -659,7 +659,7 @@ class _EmptyRequest extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              "Belum ada peminjaman $status.",
+              "Belum Ada Peminjaman $status.",
               textAlign: TextAlign.center,
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
